@@ -5,10 +5,13 @@ import androidx.lifecycle.ViewModel
 import androidx.activity.viewModels
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.SavedStateHandle
 
 private const val TAG = "QuizViewModel"
+const val CURRENT_INDEX_KEY = "CURRENT_INDEX_KEY"
+const val IS_CHEATER_KEY = "IS_CHEATER_KEY"
 
-class QuizViewModel : ViewModel() {
+class QuizViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {
     private val questionBank = listOf(
         Question(R.string.question_australia, true),
         Question(R.string.question_oceans, true),
@@ -18,7 +21,13 @@ class QuizViewModel : ViewModel() {
         Question(R.string.question_asia, true)
     )
 
-    var currentIndex = 0
+    var isCheater: Boolean
+        get() = savedStateHandle.get(IS_CHEATER_KEY) ?: false
+        set(value) = savedStateHandle.set(IS_CHEATER_KEY, value)
+
+    var currentIndex
+        get() = savedStateHandle.get(CURRENT_INDEX_KEY) ?: 0
+        set(value) = savedStateHandle.set(CURRENT_INDEX_KEY, value)
 
     private val _buttonsEnabled = MutableLiveData<Boolean>()
     val buttonsEnabled: LiveData<Boolean>
@@ -38,11 +47,13 @@ class QuizViewModel : ViewModel() {
     fun moveToNext() {
         currentIndex = (currentIndex + 1) % questionBank.size
         _buttonsEnabled.value = true
+        isCheater = false
     }
 
     fun moveToPrev() {
         currentIndex = (currentIndex - 1 + questionBank.size) % questionBank.size
         _buttonsEnabled.value = true
+        isCheater = false
     }
 
     fun setButtonsEnabled(enabled: Boolean) {
@@ -52,4 +63,5 @@ class QuizViewModel : ViewModel() {
     fun getQuestionBankSize():Int {
         return questionBank.size
     }
+
 }

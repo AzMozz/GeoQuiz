@@ -1,11 +1,14 @@
 package com.example.geoquiz
 
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -20,8 +23,17 @@ class MainActivity : AppCompatActivity() {
 
     private val quizViewModel: QuizViewModel by viewModels()
 
-    private var currentIndex = 0
+    private val cheatLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            quizViewModel.isCheater =
+                result.data?.getBooleanExtra(EXTRA_ANSWER_SHOWN, false) ?: false
+        }
+    }
+
     private var score = 0
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,6 +67,13 @@ class MainActivity : AppCompatActivity() {
             quizViewModel.moveToNext()
             updateQuestion()
         }
+
+        binding.cheatButton.setOnClickListener{
+            val answerIsTrue = quizViewModel.currentQuestionAnswer
+            val intent = CheatActivity.newIntent(this@MainActivity, answerIsTrue)
+            cheatLauncher.launch(intent)
+        }
+
         updateQuestion()
 
         binding.prevButton.setOnClickListener{
@@ -62,6 +81,8 @@ class MainActivity : AppCompatActivity() {
             updateQuestion()
         }
     }
+
+
 
     override fun onStart() {
         super.onStart()
@@ -88,20 +109,6 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "onDestroy() called")
     }
 
-
-
-    private fun nextQuestion(){
-        currentIndex = (currentIndex + 1) % quizViewModel.getQuestionBankSize()
-        updateQuestion()
-        binding.trueButton.isEnabled = true
-        binding.falseButton.isEnabled = true
-    }
-
-    private fun prevQuestion(){
-        currentIndex = (currentIndex - 1 + quizViewModel.getQuestionBankSize()) % quizViewModel.getQuestionBankSize()
-        updateQuestion()
-    }
-
     private fun updateQuestion(){
         val questionTextResId = quizViewModel.currentQuestionText
         binding.questionTextView.setText(questionTextResId)
@@ -110,13 +117,13 @@ class MainActivity : AppCompatActivity() {
     private fun checkAnswer(userAnswer: Boolean, view : View){
         val correctAnswer = quizViewModel.currentQuestionAnswer
 
-        val messageResId = if (userAnswer == correctAnswer){
-            score++
-            Log.d("QuizApp", "Correct answer! Score is now $score")
-            R.string.correct_toast
-        } else {
-            Log.d("QuizApp", "Incorrect answer.")
-            R.string.incorrect_toast
+        val messageResId = when {
+            quizViewModel.isCheater -> R.string.judgment_toast // Judgment toast if user cheated on this question
+            userAnswer == correctAnswer -> {
+                score++
+                R.string.correct_toast // Correct answer
+            }
+            else -> R.string.incorrect_toast // Incorrect answer
         }
         Snackbar.make(
             view,
